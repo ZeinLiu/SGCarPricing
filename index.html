@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>SG Car Price Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f3ef;
+  --surface:#ffffff;
+  --surface2:#f0ede8;
+  --border:#e0dbd3;
+  --text:#1a1814;
+  --text2:#6b6560;
+  --text3:#9e9890;
+  --accent:#c8472a;
+  --accent2:#e8a87c;
+  --green:#1a6b3c;
+  --green-bg:#e8f5ee;
+  --red:#c8472a;
+  --red-bg:#fdf0ec;
+  --blue:#1a4a6b;
+  --blue-bg:#e8f0f8;
+  --amber:#8c5e0a;
+  --amber-bg:#fdf5e6;
+  --shadow:0 1px 3px rgba(0,0,0,0.08);
+  --r:12px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#141210;
+    --surface:#1e1c19;
+    --surface2:#2a2721;
+    --border:#3a3730;
+    --text:#f0ede8;
+    --text2:#9e9890;
+    --text3:#6b6560;
+    --accent:#e8855a;
+    --green:#4caf78;
+    --green-bg:#0d2e1e;
+    --red:#e8855a;
+    --red-bg:#2e170f;
+    --blue:#5a8cbf;
+    --blue-bg:#0d1e2e;
+    --amber:#e0a030;
+    --amber-bg:#2e1e05;
+  }
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.5}
+.container{max-width:540px;margin:0 auto;padding:20px 16px 80px}
+header{text-align:center;padding:24px 0 20px}
+.logo{width:44px;height:44px;background:var(--accent);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px}
+.logo svg{width:24px;height:24px;fill:white}
+h1{font-size:22px;font-weight:600;letter-spacing:-0.3px}
+.subtitle{font-size:13px;color:var(--text2);margin-top:4px}
+
+.tabs{display:flex;background:var(--surface2);border-radius:var(--r);padding:3px;gap:3px;margin-bottom:20px}
+.tab{flex:1;padding:9px 0;border:none;background:transparent;border-radius:9px;font-family:inherit;font-size:14px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .2s}
+.tab.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+
+.section{background:var(--surface);border-radius:var(--r);padding:16px;margin-bottom:12px;border:1px solid var(--border)}
+.section-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text3);margin-bottom:14px}
+
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:6px}
+.field input[type=number],.field select{width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:15px;color:var(--text);outline:none;-webkit-appearance:none}
+.field input[type=number]:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(200,71,42,0.12)}
+.field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%236b6560' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+.prefix-field{position:relative}
+.prefix-field .prefix{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text2);pointer-events:none}
+.prefix-field input{padding-left:32px}
+
+.slider-wrap{position:relative}
+.field input[type=range]{width:100%;-webkit-appearance:none;height:4px;border-radius:2px;background:var(--border);outline:none}
+.field input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.2)}
+.range-labels{display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text3)}
+
+.hint{font-size:12px;color:var(--text3);margin-top:5px}
+
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:2px 0}
+.toggle-row label{font-size:14px;color:var(--text)}
+.toggle{width:44px;height:26px;border-radius:13px;background:var(--border);position:relative;cursor:pointer;transition:background .2s;border:none;flex-shrink:0}
+.toggle.on{background:var(--accent)}
+.toggle::after{content:'';position:absolute;width:20px;height:20px;background:white;border-radius:50%;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.toggle.on::after{transform:translateX(18px)}
+
+.calc-btn{width:100%;padding:14px;background:var(--accent);border:none;border-radius:var(--r);font-family:inherit;font-size:16px;font-weight:600;color:white;cursor:pointer;margin-bottom:12px;transition:opacity .15s}
+.calc-btn:active{opacity:0.85}
+
+.results{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;display:none}
+.results.show{display:block}
+.results-header{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.results-header h3{font-size:16px;font-weight:600}
+.total-badge{font-family:'DM Mono',monospace;font-size:22px;font-weight:500;color:var(--accent)}
+
+.breakdown-row{display:flex;justify-content:space-between;align-items:baseline;padding:10px 16px;border-bottom:1px solid var(--border);font-size:14px}
+.breakdown-row:last-child{border-bottom:none}
+.breakdown-row.subtotal{background:var(--surface2)}
+.breakdown-row.total{background:var(--surface2);font-weight:600;font-size:15px}
+.breakdown-row.rebate{color:var(--green)}
+.breakdown-row.surcharge{color:var(--red)}
+.row-label{color:var(--text2);flex:1}
+.row-sublabel{font-size:12px;color:var(--text3)}
+.row-value{font-family:'DM Mono',monospace;font-size:14px;color:var(--text);text-align:right}
+.row-value.green{color:var(--green)}
+.row-value.red{color:var(--red)}
+
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;margin-left:8px}
+.tag.new{background:var(--blue-bg);color:var(--blue)}
+.tag.used{background:var(--amber-bg);color:var(--amber)}
+
+.info-box{background:var(--blue-bg);border:1px solid rgba(26,74,107,0.2);border-radius:8px;padding:12px 14px;margin-top:12px;font-size:13px;color:var(--blue)}
+.warn-box{background:var(--amber-bg);border:1px solid rgba(140,94,10,0.2);border-radius:8px;padding:12px 14px;margin-top:12px;font-size:13px;color:var(--amber)}
+
+.parf-section{margin-top:12px;display:none}
+.parf-section.show{display:block}
+
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+footer{text-align:center;padding:24px 0 8px;font-size:12px;color:var(--text3)}
+footer a{color:var(--text3);text-decoration:underline}
+
+.coe-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end;margin-bottom:14px}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
+    </div>
+    <h1>SG Car Price Calculator</h1>
+    <p class="subtitle">Based on LTA rules · Updated for 2026</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('new')">New Car</button>
+    <button class="tab" onclick="switchTab('used')">Used / Resale</button>
+  </div>
+
+  <!-- NEW CAR PANEL -->
+  <div id="panel-new">
+    <div class="section">
+      <div class="section-title">Vehicle Details</div>
+      <div class="field">
+        <label>Open Market Value (OMV) <span style="font-weight:400;color:var(--text3)">— from LTA/customs</span></label>
+        <div class="prefix-field">
+          <span class="prefix">S$</span>
+          <input type="number" id="n-omv" placeholder="e.g. 25000" step="100" min="0">
+        </div>
+        <div class="hint">Find your model's OMV at onemotoring.lta.gov.sg</div>
+      </div>
+      <div class="field">
+        <label>COE Category & Premium</label>
+        <div class="coe-row">
+          <select id="n-coe-cat">
+            <option value="A">Cat A (≤1600cc / ≤97kW)</option>
+            <option value="B">Cat B (>1600cc or >97kW)</option>
+            <option value="E">Cat E (open — any car)</option>
+          </select>
+          <div class="prefix-field">
+            <span class="prefix">S$</span>
+            <input type="number" id="n-coe" placeholder="e.g. 95000" step="100" min="0">
+          </div>
+        </div>
+        <div class="hint">Current COE prices at onemotoring.lta.gov.sg/coe</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Emission Scheme (VES 2026)</div>
+      <div class="field">
+        <label>Vehicle Type</label>
+        <select id="n-vtype" onchange="updateVESOptions()">
+          <option value="petrol">Petrol / Petrol-Electric Hybrid</option>
+          <option value="ev">Full Electric (EV)</option>
+          <option value="phev">Plug-in Hybrid (PHEV)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>VES Band (based on worst pollutant)</label>
+        <select id="n-ves">
+          <option value="A">Band A — EV only — Rebate S$22,500</option>
+          <option value="B" selected>Band B — Neutral (no rebate/surcharge)</option>
+          <option value="C1">Band C1 — Surcharge S$7,500</option>
+          <option value="C2">Band C2 — Surcharge S$17,500</option>
+          <option value="C3">Band C3 — Surcharge S$35,000</option>
+        </select>
+      </div>
+      <div id="eeai-row" class="field" style="display:none">
+        <div class="toggle-row">
+          <label>EV Early Adoption Incentive (EEAI) <span style="font-size:12px;color:var(--text3)">45% of ARF, cap S$7,500</span></label>
+          <button class="toggle on" id="eeai-toggle" onclick="toggleEEAI()" aria-label="Toggle EEAI"></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Additional Fees</div>
+      <div class="field">
+        <label>Registration Fee (standard)</label>
+        <input type="number" id="n-regfee" value="220" step="1">
+        <div class="hint">Standard S$220 (S$350 for luxury vehicles)</div>
+      </div>
+      <div class="two-col">
+        <div class="field">
+          <label>Dealer Margin / Admin</label>
+          <div class="prefix-field"><span class="prefix">S$</span>
+          <input type="number" id="n-dealer" placeholder="0" step="100" min="0"></div>
+        </div>
+        <div class="field">
+          <label>Insurance (annual est.)</label>
+          <div class="prefix-field"><span class="prefix">S$</span>
+          <input type="number" id="n-insurance" placeholder="1800" step="100" min="0"></div>
+        </div>
+      </div>
+    </div>
+
+    <button class="calc-btn" onclick="calcNew()">Calculate Fair Price →</button>
+
+    <div class="results" id="results-new">
+      <div class="results-header">
+        <div>
+          <h3>Price Breakdown <span class="tag new">New</span></h3>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px" id="n-coe-label"></div>
+        </div>
+        <div class="total-badge" id="n-total-badge">—</div>
+      </div>
+      <div id="n-breakdown"></div>
+      <div style="padding:12px 16px">
+        <div class="info-box" id="n-info-box"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- USED CAR PANEL -->
+  <div id="panel-used" style="display:none">
+    <div class="section">
+      <div class="section-title">Vehicle Details</div>
+      <div class="field">
+        <label>OMV at first registration</label>
+        <div class="prefix-field"><span class="prefix">S$</span>
+        <input type="number" id="u-omv" placeholder="e.g. 25000" step="100" min="0"></div>
+      </div>
+      <div class="field">
+        <label>Registration date (year)</label>
+        <select id="u-reg-year">
+          <option value="2023">2023 (COE ≥ Feb 2023)</option>
+          <option value="2022">2022</option>
+          <option value="2021">2021</option>
+          <option value="2020">2020</option>
+          <option value="2019">2019 or earlier</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Current car age (years)</label>
+        <input type="range" id="u-age" min="0" max="9" value="3" step="1" oninput="document.getElementById('u-age-val').textContent=this.value+' yr'">
+        <div class="range-labels"><span>0</span><span id="u-age-val" style="font-weight:500;color:var(--text)">3 yr</span><span>9</span></div>
+      </div>
+      <div class="field">
+        <label>Original COE paid</label>
+        <div class="prefix-field"><span class="prefix">S$</span>
+        <input type="number" id="u-coe-paid" placeholder="e.g. 95000" step="100" min="0"></div>
+      </div>
+      <div class="field">
+        <label>Months of COE remaining</label>
+        <input type="range" id="u-coe-rem" min="1" max="120" value="84" step="1" oninput="document.getElementById('u-coe-rem-val').textContent=this.value+' mo ('+(this.value/12).toFixed(1)+' yr)'">
+        <div class="range-labels"><span>1 mo</span><span id="u-coe-rem-val" style="font-weight:500;color:var(--text)">84 mo (7.0 yr)</span><span>120 mo</span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">ARF &amp; VES at first registration</div>
+      <div class="field">
+        <label>VES rebate / surcharge received</label>
+        <select id="u-ves-orig">
+          <option value="0">Band B — None (S$0)</option>
+          <option value="-25000">Band A1 (2021–2025) — Rebate S$25,000</option>
+          <option value="-15000">Band A2 (2021–2025) — Rebate S$15,000</option>
+          <option value="-2500">Band A2 (2025) — Rebate S$2,500</option>
+          <option value="-22500">Band A (2026) — Rebate S$22,500</option>
+          <option value="10000">Band C1 surcharge S$10,000</option>
+          <option value="20000">Band C2 surcharge S$20,000</option>
+          <option value="custom">Custom amount</option>
+        </select>
+      </div>
+      <div class="field" id="u-ves-custom-field" style="display:none">
+        <label>Custom VES adjustment (negative = rebate)</label>
+        <div class="prefix-field"><span class="prefix">S$</span>
+        <input type="number" id="u-ves-custom" placeholder="-25000"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Seller's Asking Price</div>
+      <div class="field">
+        <div class="prefix-field"><span class="prefix">S$</span>
+        <input type="number" id="u-asking" placeholder="e.g. 90000" step="100" min="0"></div>
+        <div class="hint">Enter 0 to calculate fair value only</div>
+      </div>
+    </div>
+
+    <button class="calc-btn" onclick="calcUsed()">Calculate Fair Value →</button>
+
+    <div class="results" id="results-used">
+      <div class="results-header">
+        <div>
+          <h3>Valuation Breakdown <span class="tag used">Used</span></h3>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px" id="u-sub-label"></div>
+        </div>
+        <div class="total-badge" id="u-total-badge">—</div>
+      </div>
+      <div id="u-breakdown"></div>
+      <div style="padding:12px 16px" id="u-info-area"></div>
+    </div>
+  </div>
+
+  <footer>
+    LTA rules as of 2026 · Estimates only — verify at <a href="https://onemotoring.lta.gov.sg" target="_blank">onemotoring.lta.gov.sg</a>
+  </footer>
+</div>
+
+<script>
+var eeaiOn = true;
+
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((tb,i)=>tb.classList.toggle('active',i===(t==='new'?0:1)));
+  document.getElementById('panel-new').style.display = t==='new'?'':'none';
+  document.getElementById('panel-used').style.display = t==='used'?'':'none';
+}
+
+function updateVESOptions(){
+  var vt = document.getElementById('n-vtype').value;
+  var vesEl = document.getElementById('n-ves');
+  var eeaiRow = document.getElementById('eeai-row');
+  if(vt==='ev'){
+    vesEl.value='A';
+    eeaiRow.style.display='';
+  } else if(vt==='phev'){
+    if(vesEl.value==='A') vesEl.value='B';
+    eeaiRow.style.display='none';
+  } else {
+    if(vesEl.value==='A') vesEl.value='B';
+    eeaiRow.style.display='none';
+  }
+}
+
+function toggleEEAI(){
+  eeaiOn = !eeaiOn;
+  var btn = document.getElementById('eeai-toggle');
+  btn.classList.toggle('on', eeaiOn);
+}
+
+function calcARF(omv){
+  var arf = 0;
+  var tiers = [{limit:20000,rate:1.00},{limit:20000,rate:1.40},{limit:20000,rate:1.90},{limit:20000,rate:2.50},{limit:Infinity,rate:3.20}];
+  var rem = omv;
+  for(var i=0;i<tiers.length&&rem>0;i++){
+    var chunk = Math.min(rem, tiers[i].limit);
+    arf += chunk * tiers[i].rate;
+    rem -= chunk;
+  }
+  return Math.round(arf);
+}
+
+function getVESAmount(band, isEV){
+  var map = {A:-22500, B:0, C1:7500, C2:17500, C3:35000};
+  if(band==='A' && !isEV) return 0;
+  return map[band]||0;
+}
+
+function fmt(n){
+  var s = Math.abs(Math.round(n)).toLocaleString();
+  return (n<0?'–':'')+'S$'+s;
+}
+function fmtPos(n){ return 'S$'+Math.round(n).toLocaleString(); }
+
+function row(label, val, cls, sublabel){
+  var vClass = cls||'';
+  var sub = sublabel ? '<div class="row-sublabel">'+sublabel+'</div>' : '';
+  return '<div class="breakdown-row '+(cls&&(cls.includes('total')||cls.includes('subtotal'))?cls:'')+'"><div class="row-label">'+label+sub+'</div><div class="row-value '+(vClass.includes('green')||vClass.includes('rebate')?'green':vClass.includes('red')||vClass.includes('surcharge')?'red':'')+'">'+val+'</div></div>';
+}
+
+function calcNew(){
+  var omv = parseFloat(document.getElementById('n-omv').value)||0;
+  var coe = parseFloat(document.getElementById('n-coe').value)||0;
+  var coeCat = document.getElementById('n-coe-cat').value;
+  var vtype = document.getElementById('n-vtype').value;
+  var vesBand = document.getElementById('n-ves').value;
+  var regFee = parseFloat(document.getElementById('n-regfee').value)||220;
+  var dealer = parseFloat(document.getElementById('n-dealer').value)||0;
+  var insurance = parseFloat(document.getElementById('n-insurance').value)||0;
+
+  var exciseDuty = Math.round(omv * 0.20);
+  var gst = Math.round((omv + exciseDuty) * 0.09);
+  var arf = calcARF(omv);
+  var minArfFloor = vtype==='ev' ? 0 : 5000;
+  var vesAmt = getVESAmount(vesBand, vtype==='ev');
+  var netArfBeforeEEAI = Math.max(arf + vesAmt, minArfFloor);
+  var eeai = 0;
+  if(vtype==='ev' && eeaiOn){
+    eeai = -Math.min(Math.round(arf * 0.45), 7500);
+  }
+  var netARF = Math.max(netArfBeforeEEAI + eeai, 0);
+
+  var total = omv + exciseDuty + gst + netARF + coe + regFee + dealer;
+  var totalWithIns = total + insurance;
+
+  var html = '';
+  html += row('Open Market Value (OMV)', fmtPos(omv));
+  html += row('Excise Duty', fmtPos(exciseDuty), '', '20% of OMV');
+  html += row('GST', fmtPos(gst), '', '9% of (OMV + Excise Duty)');
+  html += row('ARF (gross)', fmtPos(arf), '', 'tiered: 100–320% of OMV');
+  if(vesAmt !== 0){
+    html += row('VES Band '+vesBand+' '+(vesAmt<0?'Rebate':'Surcharge'), fmt(vesAmt), vesAmt<0?'rebate':'surcharge');
+  }
+  if(eeai !== 0){
+    html += row('EEAI Rebate', fmt(eeai), 'rebate', '45% of ARF, capped S$7,500');
+  }
+  html += row('Net ARF payable', fmtPos(netARF), 'subtotal');
+  html += row('COE Premium (Cat '+coeCat+')', fmtPos(coe));
+  html += row('Registration Fee', fmtPos(regFee));
+  if(dealer>0) html += row('Dealer Margin / Admin', fmtPos(dealer));
+  html += row('Total On-Road Cost', fmtPos(total), 'total');
+  if(insurance>0) html += row('Est. First-Year Insurance', fmtPos(insurance), '', 'not included in total above');
+
+  document.getElementById('n-breakdown').innerHTML = html;
+  document.getElementById('n-total-badge').textContent = fmtPos(total);
+  document.getElementById('n-coe-label').textContent = 'COE Cat '+coeCat+' · OMV S$'+omv.toLocaleString();
+
+  var infos = [];
+  var parfPct = 75;
+  var parfRebate = Math.min(Math.round(netARF * parfPct/100), 60000);
+  var coeRemMo = 120;
+  var coeReb = Math.round(coe * coeRemMo / 120);
+  infos.push('💡 Paper value at new: PARF S$'+parfRebate.toLocaleString()+' + COE rebate S$'+coeReb.toLocaleString()+' = S$'+(parfRebate+coeReb).toLocaleString());
+  if(vtype==='ev') infos.push('⚡ EV: S$0 ARF floor maintained through Dec 2027');
+  if(vesBand==='C3') infos.push('⚠ Band C3 surcharge rises to S$45,000 from Jan 2027');
+  document.getElementById('n-info-box').innerHTML = infos.join('<br>');
+
+  document.getElementById('results-new').classList.add('show');
+  document.getElementById('results-new').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function calcARFOld(omv, regYear){
+  if(parseInt(regYear)>=2023){
+    return calcARF(omv);
+  } else {
+    var arf = 0;
+    var rem = omv;
+    var tiers = [{limit:20000,rate:1.00},{limit:30000,rate:1.40},{limit:Infinity,rate:1.80}];
+    for(var i=0;i<tiers.length&&rem>0;i++){
+      var chunk=Math.min(rem,tiers[i].limit);
+      arf+=chunk*tiers[i].rate;
+      rem-=chunk;
+    }
+    return Math.round(arf);
+  }
+}
+
+function getPARFpct(ageYears, regYear){
+  var table;
+  if(parseInt(regYear)>=2023){
+    table=[[0,75],[1,70],[2,65],[3,60],[4,55],[5,50],[6,45],[7,40],[8,35],[9,30]];
+  } else {
+    table=[[0,75],[1,70],[2,65],[3,60],[4,55],[5,50],[6,45],[7,40],[8,35],[9,30]];
+  }
+  var age = Math.min(Math.floor(ageYears),9);
+  for(var i=table.length-1;i>=0;i--) if(age>=table[i][0]) return table[i][1];
+  return 50;
+}
+
+document.getElementById('u-ves-orig').addEventListener('change', function(){
+  document.getElementById('u-ves-custom-field').style.display = this.value==='custom'?'':'none';
+});
+
+function calcUsed(){
+  var omv = parseFloat(document.getElementById('u-omv').value)||0;
+  var regYear = document.getElementById('u-reg-year').value;
+  var age = parseInt(document.getElementById('u-age').value)||0;
+  var coePaid = parseFloat(document.getElementById('u-coe-paid').value)||0;
+  var coeRemMo = parseInt(document.getElementById('u-coe-rem').value)||0;
+  var vesOrigSel = document.getElementById('u-ves-orig').value;
+  var vesOrig = vesOrigSel==='custom'?parseFloat(document.getElementById('u-ves-custom').value)||0:parseFloat(vesOrigSel)||0;
+  var asking = parseFloat(document.getElementById('u-asking').value)||0;
+
+  var arf = calcARFOld(omv, regYear);
+  var netARFPaid = Math.max(arf + vesOrig, parseInt(regYear)>=2022?0:5000);
+  var parfPct = getPARFpct(age, regYear);
+  var parfCap = parseInt(regYear)>=2023 ? 60000 : 100000;
+  var parfRebate = Math.min(Math.round(netARFPaid * parfPct / 100), parfCap);
+  var coeRebate = Math.round(coePaid * coeRemMo / 120);
+  var paperValue = parfRebate + coeRebate;
+  var fairValue = paperValue;
+  var depn = asking > 0 ? asking - paperValue : null;
+
+  var html = '';
+  html += row('Original OMV', fmtPos(omv));
+  html += row('Original ARF paid', fmtPos(netARFPaid), 'subtotal', 'incl. VES adj at registration');
+  html += row('Car age', age+' year'+(age!==1?'s':''), '', 'PARF rate: '+parfPct+'%');
+  html += row('PARF Rebate', fmtPos(parfRebate), '', parfPct+'% of net ARF, cap S$'+parfCap.toLocaleString());
+  html += row('COE Rebate', fmtPos(coeRebate), '', coeRemMo+' of 120 months remaining');
+  html += row('Total Paper Value', fmtPos(paperValue), 'total');
+
+  if(asking>0){
+    var diff = asking - paperValue;
+    var diffFmt = (diff>=0?'+':'')+Math.round(diff).toLocaleString();
+    html += '<div class="breakdown-row" style="background:var(--surface2);border-top:1px solid var(--border)"><div class="row-label">Asking Price</div><div class="row-value">S$'+Math.round(asking).toLocaleString()+'</div></div>';
+    html += '<div class="breakdown-row"><div class="row-label" style="font-weight:500">Premium over paper value<div class="row-sublabel">positive = seller premium · negative = undervalued</div></div><div class="row-value '+(diff>0?'red':'green')+'">S$'+Math.abs(Math.round(diff)).toLocaleString()+' '+(diff>0?'↑ over':'↓ under')+'</div></div>';
+  }
+
+  document.getElementById('u-breakdown').innerHTML = html;
+  document.getElementById('u-total-badge').textContent = fmtPos(paperValue);
+  document.getElementById('u-sub-label').textContent = 'Paper value · '+age+' yr old · '+coeRemMo+' mo COE left';
+
+  var info = '';
+  info += '📋 PARF rebate capped at S$'+parfCap.toLocaleString()+' for cars registered from '+(parseInt(regYear)>=2023?'Feb 2023':'before 2023')+'.<br>';
+  if(asking>0){
+    if(asking<paperValue*0.9) info+='🟢 Asking price is well below paper value — check if car has issues.<br>';
+    else if(asking<=paperValue*1.05) info+='🟢 Price is close to paper value — reasonable deal.<br>';
+    else if(asking<=paperValue*1.15) info+='🟡 Slight premium (~'+(((asking/paperValue)-1)*100).toFixed(0)+'%) over paper value — normal for well-maintained cars.<br>';
+    else info+='🔴 Significant premium ('+(((asking/paperValue)-1)*100).toFixed(0)+'%) over paper value — negotiate or verify condition.<br>';
+  }
+  info += '💡 Annual depreciation ≈ S$'+Math.round(paperValue/Math.max(120-coeRemMo,1)*12).toLocaleString()+'/yr based on remaining COE.';
+  document.getElementById('u-info-area').innerHTML = '<div class="info-box">'+info+'</div>';
+
+  document.getElementById('results-used').classList.add('show');
+  document.getElementById('results-used').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+</script>
+</body>
+</html>
