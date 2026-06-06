@@ -127,6 +127,13 @@ footer{text-align:center;padding:24px 0 8px;font-size:12px;color:var(--text3)}
 footer a{color:var(--text3);text-decoration:underline}
 
 .coe-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end;margin-bottom:14px}
+
+.coe-chips{display:flex;gap:6px;margin-bottom:10px}
+.chip{padding:5px 14px;border-radius:20px;border:1.5px solid var(--border);background:transparent;font-family:inherit;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .15s}
+.chip.active{background:var(--accent);border-color:var(--accent);color:white}
+.coe-range-btns{display:flex;gap:6px;margin-bottom:10px}
+.range-btn{padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;font-family:inherit;font-size:13px;color:var(--text2);cursor:pointer;transition:all .15s}
+.range-btn.active{background:var(--surface2);color:var(--text);border-color:var(--text3);font-weight:500}
 </style>
 </head>
 <body>
@@ -142,6 +149,7 @@ footer a{color:var(--text3);text-decoration:underline}
   <div class="tabs">
     <button class="tab active" onclick="switchTab('new')">New Car</button>
     <button class="tab" onclick="switchTab('used')">Used / Resale</button>
+    <button class="tab" onclick="switchTab('coe')">COE History</button>
   </div>
 
   <!-- NEW CAR PANEL -->
@@ -321,6 +329,27 @@ footer a{color:var(--text3);text-decoration:underline}
     </div>
   </div>
 
+  <!-- COE HISTORY PANEL -->
+  <div id="panel-coe" style="display:none">
+    <div class="section">
+      <div class="section-title">COE Premium History</div>
+      <div class="coe-chips">
+        <button class="chip active" data-cat="A" onclick="toggleCOECat('A')">Cat A</button>
+        <button class="chip active" data-cat="B" onclick="toggleCOECat('B')">Cat B</button>
+        <button class="chip active" data-cat="E" onclick="toggleCOECat('E')">Cat E</button>
+      </div>
+      <div class="coe-range-btns">
+        <button class="range-btn" data-range="3" onclick="setCOERange(3)">3Y</button>
+        <button class="range-btn" data-range="5" onclick="setCOERange(5)">5Y</button>
+        <button class="range-btn active" data-range="0" onclick="setCOERange(0)">All</button>
+      </div>
+      <canvas id="coe-chart" style="width:100%;display:block;cursor:crosshair"></canvas>
+      <div id="coe-tooltip" style="min-height:32px;padding:4px 0 8px;font-size:13px;color:var(--text2);text-align:center;font-family:'DM Mono',monospace"></div>
+      <div id="coe-latest" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"></div>
+      <div class="hint" style="margin-top:10px;text-align:center">Approximate quarterly data · <a href="https://onemotoring.lta.gov.sg" target="_blank" style="color:var(--text3)">Verify at onemotoring.lta.gov.sg</a></div>
+    </div>
+  </div>
+
   <footer>
     LTA rules as of 2026 · Estimates only — verify at <a href="https://onemotoring.lta.gov.sg" target="_blank">onemotoring.lta.gov.sg</a>
   </footer>
@@ -330,9 +359,12 @@ footer a{color:var(--text3);text-decoration:underline}
 var eeaiOn = true;
 
 function switchTab(t) {
-  document.querySelectorAll('.tab').forEach((tb,i)=>tb.classList.toggle('active',i===(t==='new'?0:1)));
+  var tabs = ['new','used','coe'];
+  document.querySelectorAll('.tab').forEach((tb,i)=>tb.classList.toggle('active',tabs[i]===t));
   document.getElementById('panel-new').style.display = t==='new'?'':'none';
   document.getElementById('panel-used').style.display = t==='used'?'':'none';
+  document.getElementById('panel-coe').style.display = t==='coe'?'':'none';
+  if(t==='coe') setTimeout(drawCOEChart, 10);
 }
 
 function updateVESOptions(){
@@ -533,6 +565,190 @@ function calcUsed(){
   document.getElementById('results-used').classList.add('show');
   document.getElementById('results-used').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
+
+// ── COE HISTORY CHART ──────────────────────────────────────────────────────
+var COE_SHOW = {A:true, B:true, E:true};
+var COE_RANGE = 0;
+var _coe = {data:[], bounds:null, hoverIdx:-1};
+
+// Quarterly data: [year, quarter, catA, catB, catE]
+var COE_DATA = [
+  [2010,1,52000,55000,58000],[2010,2,60000,64000,67000],[2010,3,65000,68000,72000],[2010,4,70000,75000,78000],
+  [2011,1,72000,78000,82000],[2011,2,75000,82000,86000],[2011,3,78000,84000,89000],[2011,4,82000,88000,92000],
+  [2012,1,86000,90000,93000],[2012,2,92000,96000,98000],[2012,3,90000,93000,96000],[2012,4,88000,90000,93000],
+  [2013,1,85000,88000,91000],[2013,2,80000,84000,87000],[2013,3,72000,77000,80000],[2013,4,68000,74000,77000],
+  [2014,1,62000,70000,74000],[2014,2,55000,63000,67000],[2014,3,48000,56000,60000],[2014,4,42000,50000,54000],
+  [2015,1,36000,44000,48000],[2015,2,30000,38000,42000],[2015,3,25000,32000,36000],[2015,4,22000,28000,31000],
+  [2016,1,20000,26000,30000],[2016,2,18000,23000,27000],[2016,3,17000,22000,26000],[2016,4,18000,23000,27000],
+  [2017,1,22000,30000,35000],[2017,2,27000,36000,41000],[2017,3,30000,40000,45000],[2017,4,34000,44000,49000],
+  [2018,1,36000,47000,52000],[2018,2,38000,50000,55000],[2018,3,40000,53000,58000],[2018,4,42000,56000,61000],
+  [2019,1,40000,55000,60000],[2019,2,38000,53000,57000],[2019,3,36000,50000,54000],[2019,4,34000,48000,52000],
+  [2020,1,30000,46000,51000],[2020,2,20000,32000,36000],[2020,3,30000,46000,51000],[2020,4,45000,60000,65000],
+  [2021,1,56000,72000,77000],[2021,2,65000,80000,85000],[2021,3,73000,88000,93000],[2021,4,82000,95000,100000],
+  [2022,1,85000,99000,104000],[2022,2,89000,103000,108000],[2022,3,92000,107000,113000],[2022,4,95000,110000,115000],
+  [2023,1,98000,111000,115000],[2023,2,102000,114000,118000],[2023,3,104000,116000,120000],[2023,4,100000,113000,117000],
+  [2024,1,97000,111000,115000],[2024,2,94000,109000,112000],[2024,3,91000,106000,109000],[2024,4,89000,103000,107000],
+  [2025,1,87000,100000,104000],[2025,2,85000,98000,101000],[2025,3,83000,95000,99000],[2025,4,82000,93000,97000],
+  [2026,1,80000,91000,95000]
+];
+
+function getCOEFiltered(){
+  if(!COE_RANGE) return COE_DATA;
+  var cutoff = 2026.25 - COE_RANGE;
+  return COE_DATA.filter(function(d){ return d[0]+(d[1]-1)/4 >= cutoff; });
+}
+
+function drawCOEChart(){
+  var canvas = document.getElementById('coe-chart');
+  if(!canvas || !canvas.closest('#panel-coe') || canvas.closest('#panel-coe').style.display==='none') return;
+  var sec = canvas.closest('.section');
+  var dpr = window.devicePixelRatio||1;
+  var W = sec.clientWidth - 32;
+  var H = Math.min(210, Math.max(140, Math.round(W*0.48)));
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+
+  var data = getCOEFiltered();
+  _coe.data = data;
+
+  var ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  var dk = window.matchMedia('(prefers-color-scheme:dark)').matches;
+  var cBorder = dk?'#3a3730':'#e0dbd3';
+  var cText2  = dk?'#9e9890':'#6b6560';
+  var cA = dk?'#e8855a':'#c8472a';
+  var cB = dk?'#5a8cbf':'#1a4a6b';
+  var cE = dk?'#4caf78':'#1a6b3c';
+
+  var pad = {t:6, r:8, b:22, l:44};
+  var cw = W-pad.l-pad.r;
+  var ch = H-pad.t-pad.b;
+  var n = data.length;
+  function xAt(i){ return pad.l+(n>1?i/(n-1)*cw:cw/2); }
+
+  // Y axis range
+  var vals = [];
+  data.forEach(function(d){
+    if(COE_SHOW.A) vals.push(d[2]);
+    if(COE_SHOW.B) vals.push(d[3]);
+    if(COE_SHOW.E) vals.push(d[4]);
+  });
+  if(!vals.length){ updateCOELatest(data[data.length-1]); return; }
+  var mn = Math.max(0, Math.floor(Math.min.apply(null,vals)/10000-0.5)*10000);
+  var mx = Math.ceil(Math.max.apply(null,vals)/10000+0.5)*10000;
+  function yAt(v){ return pad.t+ch-(v-mn)/(mx-mn)*ch; }
+  _coe.bounds = {pad,cw,ch,W,H,mn,mx,n,xAt,yAt,data};
+
+  // Grid lines
+  var step = (mx-mn)<=60000?10000:25000;
+  ctx.lineWidth=0.5; ctx.strokeStyle=cBorder;
+  ctx.font='9px DM Mono,monospace'; ctx.textAlign='right'; ctx.fillStyle=cText2;
+  for(var v=Math.ceil(mn/step)*step; v<=mx; v+=step){
+    var gy=yAt(v);
+    ctx.beginPath(); ctx.moveTo(pad.l,gy); ctx.lineTo(pad.l+cw,gy); ctx.stroke();
+    ctx.fillText('$'+(v/1000)+'k', pad.l-3, gy+3);
+  }
+
+  // X labels (one per year at Q1)
+  ctx.textAlign='center'; ctx.fillStyle=cText2; ctx.font='9px DM Sans,sans-serif';
+  var lastY=-1;
+  data.forEach(function(d,i){
+    if(d[1]===1&&d[0]!==lastY){ ctx.fillText(d[0],xAt(i),H-pad.b+11); lastY=d[0]; }
+  });
+
+  // Series lines
+  function drawSeries(vi, color){
+    ctx.strokeStyle=color; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.beginPath();
+    data.forEach(function(d,i){ i===0?ctx.moveTo(xAt(i),yAt(d[vi])):ctx.lineTo(xAt(i),yAt(d[vi])); });
+    ctx.stroke();
+    var last=data[data.length-1];
+    ctx.fillStyle=color; ctx.beginPath(); ctx.arc(xAt(n-1),yAt(last[vi]),3.5,0,Math.PI*2); ctx.fill();
+  }
+  if(COE_SHOW.E) drawSeries(4,cE);
+  if(COE_SHOW.B) drawSeries(3,cB);
+  if(COE_SHOW.A) drawSeries(2,cA);
+
+  // Hover crosshair
+  var hi = _coe.hoverIdx;
+  if(hi>=0 && hi<n){
+    var hx=xAt(hi);
+    ctx.save(); ctx.strokeStyle=cText2; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(hx,pad.t); ctx.lineTo(hx,pad.t+ch); ctx.stroke();
+    ctx.restore();
+    [[2,cA,COE_SHOW.A],[3,cB,COE_SHOW.B],[4,cE,COE_SHOW.E]].forEach(function(s){
+      if(!s[2]) return;
+      ctx.fillStyle=s[1]; ctx.strokeStyle=dk?'#1e1c19':'#ffffff'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(hx,yAt(data[hi][s[0]]),4.5,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    });
+  }
+
+  updateCOELatest(data[data.length-1]);
+}
+
+function updateCOELatest(row){
+  if(!row) row=COE_DATA[COE_DATA.length-1];
+  var dk=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  var cats=[
+    {k:'A',label:'Cat A',v:row[2],c:dk?'#e8855a':'#c8472a'},
+    {k:'B',label:'Cat B',v:row[3],c:dk?'#5a8cbf':'#1a4a6b'},
+    {k:'E',label:'Cat E',v:row[4],c:dk?'#4caf78':'#1a6b3c'}
+  ];
+  document.getElementById('coe-latest').innerHTML=cats.map(function(c){
+    return '<div style="background:var(--surface2);border-radius:8px;padding:10px;text-align:center;opacity:'+(COE_SHOW[c.k]?1:0.35)+'">'
+      +'<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:3px">'+c.label+'</div>'
+      +'<div style="font-family:\'DM Mono\',monospace;font-size:16px;font-weight:500;color:'+c.c+'">S$'+(c.v/1000).toFixed(0)+'k</div>'
+      +'</div>';
+  }).join('');
+}
+
+function toggleCOECat(cat){
+  COE_SHOW[cat]=!COE_SHOW[cat];
+  document.querySelector('[data-cat="'+cat+'"]').classList.toggle('active',COE_SHOW[cat]);
+  drawCOEChart();
+}
+
+function setCOERange(range){
+  COE_RANGE=range; _coe.hoverIdx=-1;
+  document.querySelectorAll('.range-btn').forEach(function(b){ b.classList.toggle('active',parseInt(b.dataset.range)===range); });
+  drawCOEChart();
+}
+
+(function(){
+  function setupHover(){
+    var canvas=document.getElementById('coe-chart');
+    if(!canvas) return;
+    function onMove(e){
+      var b=_coe.bounds; if(!b||!_coe.data.length) return;
+      var rect=canvas.getBoundingClientRect();
+      var cx=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+      var idx=Math.round((cx-b.pad.l)/b.cw*(b.n-1));
+      idx=Math.max(0,Math.min(b.n-1,idx));
+      if(idx!==_coe.hoverIdx){
+        _coe.hoverIdx=idx; drawCOEChart();
+        var d=_coe.data[idx];
+        var ql=['Q1','Q2','Q3','Q4'][d[1]-1];
+        var parts=[];
+        if(COE_SHOW.A) parts.push('A: S$'+(d[2]/1000).toFixed(0)+'k');
+        if(COE_SHOW.B) parts.push('B: S$'+(d[3]/1000).toFixed(0)+'k');
+        if(COE_SHOW.E) parts.push('E: S$'+(d[4]/1000).toFixed(0)+'k');
+        document.getElementById('coe-tooltip').textContent=d[0]+' '+ql+'  ·  '+parts.join('  ·  ');
+      }
+    }
+    function onLeave(){
+      _coe.hoverIdx=-1;
+      document.getElementById('coe-tooltip').textContent='';
+      drawCOEChart();
+    }
+    canvas.addEventListener('mousemove',onMove);
+    canvas.addEventListener('touchmove',onMove,{passive:true});
+    canvas.addEventListener('mouseleave',onLeave);
+    canvas.addEventListener('touchend',onLeave);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',setupHover);
+  else setupHover();
+})();
 </script>
 </body>
 </html>
