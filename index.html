@@ -127,6 +127,12 @@ footer{text-align:center;padding:24px 0 8px;font-size:12px;color:var(--text3)}
 footer a{color:var(--text3);text-decoration:underline}
 
 .coe-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end;margin-bottom:14px}
+.breakdown-group-hdr{padding:5px 16px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text3);background:var(--surface2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.breakdown-sub{padding:8px 16px 8px 28px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:baseline;background:var(--surface2)}
+.breakdown-sub .bs-label{font-size:13px;color:var(--text2);flex:1}
+.breakdown-sub .bs-note{font-size:11px;color:var(--text3)}
+.breakdown-sub .bs-val{font-family:'DM Mono',monospace;font-size:13px;text-align:right}
+.breakdown-sum{padding:6px 16px;font-size:11px;color:var(--text3);background:var(--surface2);border-bottom:1px solid var(--border);text-align:right;font-style:italic}
 
 .coe-chips{display:flex;gap:6px;margin-bottom:10px}
 .chip{padding:5px 14px;border-radius:20px;border:1.5px solid var(--border);background:transparent;font-family:inherit;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .15s}
@@ -177,7 +183,7 @@ footer a{color:var(--text3);text-decoration:underline}
             <input type="number" id="n-coe" placeholder="e.g. 95000" step="100" min="0">
           </div>
         </div>
-        <div class="hint">Current COE prices at onemotoring.lta.gov.sg/coe</div>
+        <div class="hint" id="n-coe-hint">Loading latest COE prices…</div>
       </div>
     </div>
 
@@ -220,7 +226,8 @@ footer a{color:var(--text3);text-decoration:underline}
         <div class="field">
           <label>Dealer Margin / Admin</label>
           <div class="prefix-field"><span class="prefix">S$</span>
-          <input type="number" id="n-dealer" placeholder="0" step="100" min="0"></div>
+          <input type="number" id="n-dealer" value="3500" step="100" min="0"></div>
+          <div class="hint">Typical fair range S$2,000–5,000</div>
         </div>
         <div class="field">
           <label>Insurance (annual est.)</label>
@@ -413,6 +420,12 @@ function fmt(n){
 }
 function fmtPos(n){ return 'S$'+Math.round(n).toLocaleString(); }
 
+function rowSub(label, val, colorCls, note){
+  var vc = colorCls==='rebate'?'color:var(--green)':colorCls==='surcharge'?'color:var(--red)':'';
+  var noteHtml = note ? '<div class="bs-note">'+note+'</div>' : '';
+  return '<div class="breakdown-sub"><div class="bs-label">'+label+noteHtml+'</div><div class="bs-val" style="'+vc+'">'+val+'</div></div>';
+}
+
 function row(label, val, cls, sublabel){
   var vClass = cls||'';
   var sub = sublabel ? '<div class="row-sublabel">'+sublabel+'</div>' : '';
@@ -444,21 +457,34 @@ function calcNew(){
   var total = omv + exciseDuty + gst + netARF + coe + regFee + dealer;
   var totalWithIns = total + insurance;
 
+  // Build formula label for total row
+  var totalParts = ['OMV','Excise Duty','GST','Net ARF','COE'];
+  if(regFee>0) totalParts.push('Reg Fee');
+  totalParts.push('Dealer');
+
   var html = '';
   html += row('Open Market Value (OMV)', fmtPos(omv));
   html += row('Excise Duty', fmtPos(exciseDuty), '', '20% of OMV');
   html += row('GST', fmtPos(gst), '', '9% of (OMV + Excise Duty)');
-  html += row('ARF (gross)', fmtPos(arf), '', 'tiered: 100–320% of OMV');
+
+  // ARF sub-group — gross, adjustments, then net flows into total
+  html += '<div class="breakdown-group-hdr">ARF Calculation</div>';
+  html += rowSub('Gross ARF', fmtPos(arf), '', 'tiered 100–320% of OMV');
   if(vesAmt !== 0){
-    html += row('VES Band '+vesBand+' '+(vesAmt<0?'Rebate':'Surcharge'), fmt(vesAmt), vesAmt<0?'rebate':'surcharge');
+    html += rowSub('VES Band '+vesBand+' '+(vesAmt<0?'Rebate':'Surcharge'), fmt(vesAmt), vesAmt<0?'rebate':'surcharge');
   }
   if(eeai !== 0){
-    html += row('EEAI Rebate', fmt(eeai), 'rebate', '45% of ARF, capped S$7,500');
+    html += rowSub('EEAI Rebate', fmt(eeai), 'rebate', '45% of ARF, capped S$7,500');
+  }
+  if(netARF === minArfFloor && arf+vesAmt < minArfFloor){
+    html += rowSub('Min ARF floor applied', '', '', vtype==='ev'?'EV floor: S$0':'Non-EV floor: S$5,000');
   }
   html += row('Net ARF payable', fmtPos(netARF), 'subtotal');
+
   html += row('COE Premium (Cat '+coeCat+')', fmtPos(coe));
   html += row('Registration Fee', fmtPos(regFee));
-  if(dealer>0) html += row('Dealer Margin / Admin', fmtPos(dealer));
+  html += row('Dealer Margin / Admin', fmtPos(dealer), '', 'typical fair range S$2,000–5,000');
+  html += '<div class="breakdown-sum">'+totalParts.join(' + ')+'</div>';
   html += row('Total On-Road Cost', fmtPos(total), 'total');
   if(insurance>0) html += row('Est. First-Year Insurance', fmtPos(insurance), '', 'not included in total above');
 
@@ -571,7 +597,7 @@ var COE_SHOW = {A:true, B:true, E:true};
 var COE_RANGE = 0;
 var _coe = {data:[], bounds:null, hoverIdx:-1};
 
-// Quarterly data: [year, quarter, catA, catB, catE]
+// Quarterly data: [year, quarter, catA, catB, catE] — overwritten by live API on load
 var COE_DATA = [
   [2010,1,52000,55000,58000],[2010,2,60000,64000,67000],[2010,3,65000,68000,72000],[2010,4,70000,75000,78000],
   [2011,1,72000,78000,82000],[2011,2,75000,82000,86000],[2011,3,78000,84000,89000],[2011,4,82000,88000,92000],
@@ -587,10 +613,80 @@ var COE_DATA = [
   [2021,1,56000,72000,77000],[2021,2,65000,80000,85000],[2021,3,73000,88000,93000],[2021,4,82000,95000,100000],
   [2022,1,85000,99000,104000],[2022,2,89000,103000,108000],[2022,3,92000,107000,113000],[2022,4,95000,110000,115000],
   [2023,1,98000,111000,115000],[2023,2,102000,114000,118000],[2023,3,104000,116000,120000],[2023,4,100000,113000,117000],
-  [2024,1,97000,111000,115000],[2024,2,94000,109000,112000],[2024,3,91000,106000,109000],[2024,4,89000,103000,107000],
-  [2025,1,87000,100000,104000],[2025,2,85000,98000,101000],[2025,3,83000,95000,99000],[2025,4,82000,93000,97000],
-  [2026,1,80000,91000,95000]
+  [2024,1,97000,110000,113000],[2024,2,94000,108000,111000],[2024,3,91000,106000,109000],[2024,4,89000,103000,107000],
+  [2025,1,100000,112000,116000],[2025,2,107000,118000,122000],[2025,3,118000,128000,133000],[2025,4,112000,118000,124000],
+  [2026,1,107000,113000,117000],[2026,2,124000,127000,129000]
 ];
+
+var COE_LIVE = {}; // {A, B, E} — populated from API
+
+function loadCOEData(){
+  fetch('https://data.gov.sg/api/action/datastore_search?resource_id=d_69b3380ad7e51aff3a7dcc84eba52b8a&limit=2000&sort=month%20asc')
+    .then(function(r){ return r.json(); })
+    .then(function(json){
+      var recs = json.result && json.result.records;
+      if(!recs || !recs.length) return;
+      processCOERecords(recs);
+    })
+    .catch(function(){ updateCOEHints(); }); // use fallback data
+}
+
+function processCOERecords(recs){
+  var qMap = {};
+  recs.forEach(function(r){
+    var yr = parseInt(r.month.substring(0,4));
+    var mo = parseInt(r.month.substring(5,7));
+    if(yr < 2010) return;
+    var vc = r.vehicle_class;
+    if(vc!=='Category A' && vc!=='Category B' && vc!=='Category E') return;
+    var p = parseInt(r.premium);
+    if(isNaN(p) || p <= 0) return;
+    var q = Math.ceil(mo/3);
+    var key = yr*10+q;
+    if(!qMap[key]) qMap[key]={y:yr,q:q,a:[],b:[],e:[]};
+    if(vc==='Category A') qMap[key].a.push(p);
+    else if(vc==='Category B') qMap[key].b.push(p);
+    else if(vc==='Category E') qMap[key].e.push(p);
+  });
+
+  function avg(arr){ return arr.length?Math.round(arr.reduce(function(s,v){return s+v;},0)/arr.length):null; }
+
+  var newData = Object.keys(qMap).sort(function(a,b){return a-b;}).reduce(function(acc,k){
+    var v=qMap[k], a=avg(v.a), b=avg(v.b), e=avg(v.e);
+    if(a && b && e) acc.push([v.y,v.q,a,b,e]);
+    return acc;
+  },[]);
+
+  if(newData.length){
+    COE_DATA = newData;
+    // Extract latest month's prices for the hint
+    var latestMonth = recs.reduce(function(mx,r){ return r.month>mx?r.month:mx; },'');
+    recs.forEach(function(r){
+      if(r.month!==latestMonth) return;
+      var p=parseInt(r.premium);
+      if(r.vehicle_class==='Category A') COE_LIVE.A=p;
+      else if(r.vehicle_class==='Category B') COE_LIVE.B=p;
+      else if(r.vehicle_class==='Category E') COE_LIVE.E=p;
+    });
+    updateCOEHints();
+    if(document.getElementById('panel-coe').style.display!=='none') drawCOEChart();
+  }
+}
+
+function updateCOEHints(){
+  var hint = document.getElementById('n-coe-hint');
+  if(!hint) return;
+  if(COE_LIVE.A && COE_LIVE.B && COE_LIVE.E){
+    var mo = new Date().toLocaleString('en-SG',{month:'short',year:'numeric'});
+    hint.innerHTML = 'Latest ('+mo+'): '
+      +'<b>A</b> S$'+(COE_LIVE.A/1000).toFixed(0)+'k · '
+      +'<b>B</b> S$'+(COE_LIVE.B/1000).toFixed(0)+'k · '
+      +'<b>E</b> S$'+(COE_LIVE.E/1000).toFixed(0)+'k'
+      +' — <a href="https://onemotoring.lta.gov.sg" target="_blank" style="color:var(--text3)">onemotoring.lta.gov.sg</a>';
+  } else {
+    hint.innerHTML = 'Current COE prices at <a href="https://onemotoring.lta.gov.sg" target="_blank" style="color:var(--text3)">onemotoring.lta.gov.sg</a>';
+  }
+}
 
 function getCOEFiltered(){
   if(!COE_RANGE) return COE_DATA;
@@ -699,6 +795,7 @@ function updateCOELatest(row){
     return '<div style="background:var(--surface2);border-radius:8px;padding:10px;text-align:center;opacity:'+(COE_SHOW[c.k]?1:0.35)+'">'
       +'<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:3px">'+c.label+'</div>'
       +'<div style="font-family:\'DM Mono\',monospace;font-size:16px;font-weight:500;color:'+c.c+'">S$'+(c.v/1000).toFixed(0)+'k</div>'
+      +'<div style="font-size:10px;color:var(--text3);margin-top:2px">'+(COE_LIVE[c.k]?'live':'est.')+'</div>'
       +'</div>';
   }).join('');
 }
@@ -749,6 +846,8 @@ function setCOERange(range){
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',setupHover);
   else setupHover();
 })();
+
+loadCOEData();
 </script>
 </body>
 </html>
